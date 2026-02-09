@@ -1,0 +1,59 @@
+version: "3.9"
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: wallet-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-wallet}
+      POSTGRES_USER: ${POSTGRES_USER:-wallet}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-walletpass}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - wallet-pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-wallet} -d ${POSTGRES_DB:-wallet}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  app:
+    build:
+      context: ./wallet-service
+      dockerfile: Dockerfile
+    image: wallet-service:latest
+    container_name: wallet-service
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      SERVER_PORT: ${SERVER_PORT:-8080}
+      SPRING_DATASOURCE_URL: ${SPRING_DATASOURCE_URL:-jdbc:postgresql://postgres:5432/wallet}
+      SPRING_DATASOURCE_USERNAME: ${SPRING_DATASOURCE_USERNAME:-wallet}
+      SPRING_DATASOURCE_PASSWORD: ${SPRING_DATASOURCE_PASSWORD:-walletpass}
+      DB_POOL_MAX_SIZE: ${DB_POOL_MAX_SIZE:-50}
+      DB_POOL_MIN_IDLE: ${DB_POOL_MIN_IDLE:-5}
+      DB_POOL_CONNECTION_TIMEOUT_MS: ${DB_POOL_CONNECTION_TIMEOUT_MS:-30000}
+      WALLET_RETRY_MAX_ATTEMPTS: ${WALLET_RETRY_MAX_ATTEMPTS:-50}
+      WALLET_RETRY_INITIAL_DELAY_MS: ${WALLET_RETRY_INITIAL_DELAY_MS:-10}
+      WALLET_RETRY_MAX_DELAY_MS: ${WALLET_RETRY_MAX_DELAY_MS:-200}
+      WALLET_RETRY_MULTIPLIER: ${WALLET_RETRY_MULTIPLIER:-2.0}
+      LIQUIBASE_ENABLED: ${LIQUIBASE_ENABLED:-true}
+      WALLET_CORS_ALLOWED_ORIGINS: ${WALLET_CORS_ALLOWED_ORIGINS:-*}
+      LOG_LEVEL_ROOT: ${LOG_LEVEL_ROOT:-INFO}
+      LOG_LEVEL_APP: ${LOG_LEVEL_APP:-INFO}
+      JAVA_OPTS: ${JAVA_OPTS:-}
+    ports:
+      - "${APP_PORT:-8080}:8080"
+    healthcheck:
+      test: ["CMD", "sh", "-c", "wget -qO- http://localhost:8080/actuator/health | grep -q '\"status\":\"UP\"'"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+      start_period: 30s
+
+volumes:
+  wallet-pgdata:
