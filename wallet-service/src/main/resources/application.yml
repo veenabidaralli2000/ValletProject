@@ -1,0 +1,52 @@
+server:
+  port: ${SERVER_PORT:8080}
+
+spring:
+  application:
+    name: wallet-service
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/wallet}
+    username: ${SPRING_DATASOURCE_USERNAME:wallet}
+    password: ${SPRING_DATASOURCE_PASSWORD:wallet}
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: ${DB_POOL_MAX_SIZE:50}
+      minimum-idle: ${DB_POOL_MIN_IDLE:5}
+      connection-timeout: ${DB_POOL_CONNECTION_TIMEOUT_MS:30000}
+  jpa:
+    hibernate:
+      ddl-auto: none
+    open-in-view: false
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        jdbc:
+          batch_size: 50
+        order_inserts: true
+        order_updates: true
+  liquibase:
+    change-log: classpath:db/changelog/db.changelog-master.xml
+    enabled: ${LIQUIBASE_ENABLED:true}
+
+wallet:
+  cors:
+    allowed-origins: ${WALLET_CORS_ALLOWED_ORIGINS:*}
+  optimistic-lock:
+    max-attempts: ${WALLET_RETRY_MAX_ATTEMPTS:50}
+    initial-delay-ms: ${WALLET_RETRY_INITIAL_DELAY_MS:10}
+    max-delay-ms: ${WALLET_RETRY_MAX_DELAY_MS:200}
+    multiplier: ${WALLET_RETRY_MULTIPLIER:2.0}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      show-details: when_authorized
+
+logging:
+  level:
+    root: ${LOG_LEVEL_ROOT:INFO}
+    com.wallet: ${LOG_LEVEL_APP:INFO}
